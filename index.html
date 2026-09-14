@@ -9,46 +9,58 @@
 <style>
   :root {
     color-scheme: light;
-    --bg: #f5f6f8; --card: #ffffff; --fg: #1d2530; --muted: #5b6776; --line: #e3e7ec;
-    --accent: #0f6e5a; --accent-fg: #ffffff; --warn-bg: #fff4e5; --warn-fg: #8a4b00; --err: #b42318;
+    --brand: #1062B0; --brand-2: #0081FC; --gray: #CFD2D5;
+    --bg: #ffffff; --fg: #1d2530; --muted: #5b6776; --line: #d9dde1; --soft: #f4f6f8;
+    --warn-bg: #fff4e5; --warn-fg: #8a4b00; --err: #b42318;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 16px 16px 40px; background: var(--bg); color: var(--fg);
-         font: 16px/1.65 -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
-  header { max-width: 520px; margin: 0 auto 12px; display: flex; align-items: baseline; justify-content: space-between; }
-  header h1 { font-size: 17px; margin: 0; }
-  header span { font-size: 12px; color: var(--muted); }
+  body { margin: 0; padding: 20px 16px 48px; background: var(--bg); color: var(--fg);
+         font: 16px/1.7 -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
   main { max-width: 520px; margin: 0 auto; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 12px; }
-  h2 { font-size: 16px; margin: 0 0 10px; }
+  .brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 8px 0 18px; }
+  .brand img { width: 34px; height: 34px; }
+  .brand span { font-size: 17px; font-weight: 700; letter-spacing: .04em; color: #2a3440; }
+  h1.page { text-align: center; font-size: 20px; margin: 0 0 14px; color: #3a4552; }
+  .lead { font-size: 15px; margin: 0 0 22px; }
+  h2 { font-size: 17px; margin: 0 0 10px; }
   p { margin: 0 0 10px; }
   .muted { color: var(--muted); font-size: 14px; }
+  .card { border: 1px solid var(--line); border-radius: 8px; padding: 18px; margin-bottom: 14px; background: #fff; }
   ul.consent { margin: 0 0 12px; padding-left: 1.2em; font-size: 14px; }
   ul.consent li { margin-bottom: 6px; }
   label { display: block; font-size: 14px; font-weight: 600; margin: 12px 0 4px; }
-  input[type=text], input[type=date] { width: 100%; font-size: 17px; padding: 10px 12px; border: 1px solid #c9d0d8; border-radius: 8px; background: #fff; }
+  input[type=text], input[type=date] { width: 100%; font-size: 17px; padding: 10px 12px; border: 1px solid #c3c9cf; border-radius: 8px; background: #fff; }
   .check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; margin: 12px 0; }
-  .check input { margin-top: 4px; width: 18px; height: 18px; }
-  button { width: 100%; font-size: 16px; font-weight: 600; padding: 12px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-fg); }
+  .check input { margin-top: 4px; width: 18px; height: 18px; accent-color: var(--brand); }
+  button { width: 100%; font-size: 16px; font-weight: 600; padding: 12px; border: 0; border-radius: 8px; background: var(--brand); color: #fff; }
   button:disabled { opacity: .45; }
-  button.secondary { background: #fff; color: var(--accent); border: 1px solid var(--accent); margin-top: 8px; }
+  button.secondary { background: #fff; color: var(--brand); border: 1px solid var(--brand); margin-top: 8px; }
   .msg { font-size: 14px; margin-top: 10px; }
   .msg.err { color: var(--err); }
   .notice { background: var(--warn-bg); color: var(--warn-fg); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
-  .year { font-size: 13px; color: var(--muted); margin: 14px 2px 6px; font-weight: 600; }
-  .doc { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
-  .doc:first-of-type { border-top: 0; }
+  /* 患者ごとの開閉枠 (参考: 各種書類ページ) */
+  .person { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  .person > summary { list-style: none; display: flex; align-items: center; gap: 14px; padding: 18px 20px; cursor: pointer; }
+  .person > summary::-webkit-details-marker { display: none; }
+  .person .icon { width: 26px; height: 26px; flex-shrink: 0; }
+  .person .name { font-size: 18px; font-weight: 700; color: var(--brand); flex: 1; }
+  .person .chev { width: 18px; height: 18px; color: var(--brand); transition: transform .2s; transform: rotate(180deg); }
+  .person[open] .chev { transform: rotate(0deg); }
+  .person .panel { border-top: 1px solid var(--line); padding: 4px 16px 14px; }
+  .year { font-size: 13px; color: var(--muted); margin: 14px 2px 4px; font-weight: 600; }
+  .doc { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--soft); }
+  .year + .doc { border-top: 0; }
   .doc .title { font-weight: 600; }
-  .doc .sub { font-size: 13px; color: var(--muted); }
+  .doc .sub { font-size: 12px; color: var(--muted); }
   .doc .btns { display: flex; gap: 6px; flex-shrink: 0; }
-  .doc button { width: auto; padding: 8px 12px; font-size: 14px; }
-  .badge { display: inline-block; font-size: 12px; padding: 1px 6px; border-radius: 6px; background: #eef1f4; color: var(--muted); margin-left: 6px; }
-  a { color: var(--accent); }
+  .doc button { width: auto; padding: 7px 12px; font-size: 14px; background: #fff; color: var(--brand); border: 1px solid var(--brand); }
+  .badge { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 6px; background: var(--soft); color: var(--muted); margin-left: 6px; }
+  a { color: var(--brand); }
 </style>
 </head>
 <body>
-<header><h1>豊洲イーウェルクリニック マイページ</h1><span id="ver"></span></header>
 <main>
+  <div class="brand"><img src="logo.png" alt=""><span>豊洲イーウェルクリニック</span></div>
   <section id="loading" class="card"><p>読み込み中…</p></section>
 
   <section id="consent" class="card" hidden>
@@ -77,10 +89,17 @@
     <div id="link-msg" class="msg" role="status"></div>
   </section>
 
-  <section id="docs" class="card" hidden>
-    <h2>領収書・明細書</h2>
-    <div id="docs-body"></div>
-    <p class="muted" style="margin-top:12px">新しい領収書は、ご来院の翌日以降に表示されます。</p>
+  <section id="docs" hidden>
+    <h1 class="page">各種書類（領収書・明細書など）</h1>
+    <p class="lead" id="docs-lead">ご来院の翌日以降に表示されます。紙の領収書も、これまでどおりお渡ししています。</p>
+    <details class="person" open>
+      <summary>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.5" r="4.5" fill="#1062B0"/><path d="M3 22c0-5 4-8.5 9-8.5s9 3.5 9 8.5z" fill="#1062B0"/></svg>
+        <span class="name">ご本人</span>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 15l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </summary>
+      <div class="panel" id="docs-body"></div>
+    </details>
   </section>
 
   <section id="error" class="card" hidden><p id="error-text" class="msg err"></p></section>
@@ -198,11 +217,12 @@
       const row = document.createElement("div"); row.className = "doc";
       const left = document.createElement("div");
       const title = document.createElement("div"); title.className = "title"; title.textContent = fmtDate(date);
-      const sub = document.createElement("div"); sub.className = "sub"; sub.textContent = "診療費請求書兼領収書・診療費明細書";
+      left.append(title);
       if (docs.some((d) => d.version > 1 || corrected.has(`${date}|${d.kind}`))) {
-        const b = document.createElement("span"); b.className = "badge"; b.textContent = "訂正済み"; sub.appendChild(b);
+        const sub = document.createElement("div"); sub.className = "sub";
+        const b = document.createElement("span"); b.className = "badge"; b.style.marginLeft = "0"; b.textContent = "訂正済み";
+        sub.appendChild(b); left.appendChild(sub);
       }
-      left.append(title, sub);
       const btns = document.createElement("div"); btns.className = "btns";
       docs.sort((a, b) => (a.kind === "receipt" ? 0 : 1) - (b.kind === "receipt" ? 0 : 1));
       for (const d of docs) {
@@ -222,7 +242,6 @@
       if (!liff.isLoggedIn()) { liff.login(); return; }
       const s = await api("session");
       consentVersion = s.consent_version;
-      $("ver").textContent = "";
       if (s.linked_patients > 0) { await loadDocuments(); return; }
       setCodeMode(!s.has_candidate);
       $("birthdate").max = new Date().toISOString().slice(0, 10);
