@@ -59,6 +59,20 @@
   .badge { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 6px; background: var(--soft); color: var(--muted); margin-right: 6px; }
   .badge.demo { background: #fff0d6; color: #8a4b00; font-weight: 700; }
   a { color: var(--brand); }
+  /* LINE 内で PDF を表示するビューア (PDF.js で描画 / Android の LINE 内ブラウザは PDF を直接表示できない) */
+  #viewer { position: fixed; inset: 0; z-index: 10; background: #e9ecef; display: flex; flex-direction: column; }
+  #viewer[hidden] { display: none; }
+  .vbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top));
+          background: #fff; border-bottom: 1px solid var(--line); }
+  .vbar button { width: auto; padding: 7px 12px; font-size: 14px; }
+  .vbar .back { background: #fff; color: var(--brand); border: 1px solid var(--brand); }
+  .vbar .vtitle { flex: 1; text-align: center; font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .vbar .save { background: var(--brand); color: #fff; }
+  #vpages { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 12px 10px calc(24px + env(safe-area-inset-bottom)); }
+  #vpages canvas { display: block; width: 100%; height: auto; margin: 0 auto 12px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+  #vstatus { text-align: center; font-size: 14px; color: var(--muted); padding: 24px 12px; }
+  #vstatus button { width: auto; margin-top: 12px; padding: 9px 16px; }
+  body.viewing { overflow: hidden; }
 </style>
 </head>
 <body>
@@ -107,6 +121,15 @@
 
   <section id="error" class="card" hidden><p id="error-text" class="msg err"></p></section>
 </main>
+
+<div id="viewer" hidden role="dialog" aria-modal="true" aria-labelledby="vtitle">
+  <div class="vbar">
+    <button class="back" id="vback" type="button">戻る</button>
+    <div class="vtitle" id="vtitle"></div>
+    <button class="save" id="vsave" type="button">保存</button>
+  </div>
+  <div id="vpages"><div id="vstatus">読み込み中…</div></div>
+</div>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
@@ -179,16 +202,103 @@
     return `${y}年${m}月${d}日`;
   }
 
-  async function openDocument(id, btn) {
-    btn.disabled = true;
+  // ---- LINE 内ビューア ------------------------------------------------------
+  // PDF は署名 URL (有効 5 分) から取得してこのページの中で描画する。URL や PDF をどこにも保存しない。
+  // PDF.js は同梱 (第三者 CDN から読まない)。isEvalSupported:false で PDF 内のコードを実行させない。
+  const PDFJS_URL = new URL("vendor/pdfjs/pdf.min.mjs", location.href).href;
+  const PDFJS_WORKER_URL = new URL("vendor/pdfjs/pdf.worker.min.mjs", location.href).href;
+  let pdfjsPromise = null;
+  let viewerSeq = 0;           // 開き直し・戻るで古い描画を捨てるための番号
+  let viewerDoc = null;
+  let viewerDocumentId = null;
+
+  function loadPdfjs() {
+    if (!pdfjsPromise) {
+      pdfjsPromise = import(PDFJS_URL).then((m) => { m.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL; return m; });
+      pdfjsPromise.catch(() => { pdfjsPromise = null; });
+    }
+    return pdfjsPromise;
+  }
+
+  function viewerStatus(text, withExternal) {
+    const box = document.createElement("div"); box.id = "vstatus";
+    const p = document.createElement("p"); p.textContent = text; box.appendChild(p);
+    if (withExternal) {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = "外部ブラウザで開く";
+      b.addEventListener("click", () => openExternal(viewerDocumentId, b));
+      box.appendChild(b);
+    }
+    $("vpages").replaceChildren(box);
+  }
+
+  function closeViewer(fromPopstate) {
+    if ($("viewer").hidden) return;
+    viewerSeq++;
+    if (viewerDoc) { viewerDoc.destroy().catch(() => {}); viewerDoc = null; }
+    $("vpages").replaceChildren();
+    $("viewer").hidden = true;
+    document.body.classList.remove("viewing");
+    viewerDocumentId = null;
+    if (!fromPopstate && history.state && history.state.viewer) history.back();
+  }
+
+  async function openExternal(id, btn) {
+    if (!id) return;
+    if (btn) btn.disabled = true;
     try {
-      const r = await api("document_url", { document_id: id });
-      // LINE 内ブラウザは PDF 保存が不安定 → 外部ブラウザで開く
+      const r = await api("document_url", { document_id: id });  // 署名 URL は 5 分で切れるので取り直す
       liff.openWindow({ url: r.url, external: true });
     } catch (e) {
       if (e.message !== "relogin") alert("開けませんでした。時間をおいてお試しください。");
+    } finally { if (btn) btn.disabled = false; }
+  }
+
+  async function openDocument(id, btn, title) {
+    btn.disabled = true;
+    const seq = ++viewerSeq;
+    viewerDocumentId = id;
+    $("vtitle").textContent = title;
+    viewerStatus("読み込み中…", false);
+    $("viewer").hidden = false;
+    document.body.classList.add("viewing");
+    history.pushState({ viewer: true }, "");  // Android の戻るボタン・スワイプで一覧に戻す
+    try {
+      const [pdfjs, r] = await Promise.all([loadPdfjs(), api("document_url", { document_id: id })]);
+      const res = await fetch(r.url, { cache: "no-store", referrerPolicy: "no-referrer", credentials: "omit" });
+      if (!res.ok) throw new Error("fetch_" + res.status);
+      const data = new Uint8Array(await res.arrayBuffer());
+      if (seq !== viewerSeq) return;
+      const doc = await pdfjs.getDocument({ data, isEvalSupported: false, enableXfa: false }).promise;
+      if (seq !== viewerSeq) { doc.destroy(); return; }
+      viewerDoc = doc;
+      const holder = $("vpages");
+      holder.replaceChildren();
+      const cssWidth = Math.max(280, holder.clientWidth - 20);
+      // 拡大しても読めるよう端末の画素密度より少し高めに描く (上限 3 倍でメモリを抑える)
+      const density = Math.min(3, (window.devicePixelRatio || 1) * 1.5);
+      for (let n = 1; n <= doc.numPages; n++) {
+        const page = await doc.getPage(n);
+        if (seq !== viewerSeq) return;
+        const base = page.getViewport({ scale: 1 });
+        const viewport = page.getViewport({ scale: (cssWidth / base.width) * density });
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        canvas.setAttribute("aria-label", `${title} ${n}ページ目`);
+        holder.appendChild(canvas);
+        await page.render({ canvasContext: canvas.getContext("2d", { alpha: false }), viewport }).promise;
+        page.cleanup();
+      }
+    } catch (e) {
+      if (seq !== viewerSeq) return;
+      if (e.message === "relogin") { closeViewer(false); return; }
+      viewerStatus("この画面では表示できませんでした。外部ブラウザで開くとご覧いただけます。", true);
     } finally { btn.disabled = false; }
   }
+
+  $("vback").addEventListener("click", () => closeViewer(false));
+  $("vsave").addEventListener("click", (ev) => openExternal(viewerDocumentId, ev.currentTarget));
+  window.addEventListener("popstate", () => closeViewer(true));
 
   async function loadDocuments() {
     show("loading");
@@ -244,7 +354,7 @@
         ds.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
         for (const d of ds) {
           const btn = document.createElement("button"); btn.textContent = kinds[d.kind];
-          btn.addEventListener("click", () => openDocument(d.document_id, btn));
+          btn.addEventListener("click", () => openDocument(d.document_id, btn, `${kinds[d.kind]}（${fmtDate(date)}）`));
           btns.appendChild(btn);
         }
         row.append(left, btns);
