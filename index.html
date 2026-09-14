@@ -47,14 +47,17 @@
   .person .chev { width: 18px; height: 18px; color: var(--brand); transition: transform .2s; transform: rotate(180deg); }
   .person[open] .chev { transform: rotate(0deg); }
   .person .panel { border-top: 1px solid var(--line); padding: 4px 16px 14px; }
-  .year { font-size: 13px; color: var(--muted); margin: 14px 2px 4px; font-weight: 600; }
+  .section-title { font-size: 15px; font-weight: 700; color: #2a3440; margin: 16px 2px 2px; padding-left: 8px; border-left: 3px solid var(--brand); }
+  .empty { font-size: 13px; color: var(--muted); margin: 6px 2px 4px; }
+  .year { font-size: 13px; color: var(--muted); margin: 10px 2px 4px; font-weight: 600; }
   .doc { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--soft); }
   .year + .doc { border-top: 0; }
   .doc .title { font-weight: 600; }
   .doc .sub { font-size: 12px; color: var(--muted); }
   .doc .btns { display: flex; gap: 6px; flex-shrink: 0; }
   .doc button { width: auto; padding: 7px 12px; font-size: 14px; background: #fff; color: var(--brand); border: 1px solid var(--brand); }
-  .badge { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 6px; background: var(--soft); color: var(--muted); margin-left: 6px; }
+  .badge { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 6px; background: var(--soft); color: var(--muted); margin-right: 6px; }
+  .badge.demo { background: #fff0d6; color: #8a4b00; font-weight: 700; }
   a { color: var(--brand); }
 </style>
 </head>
@@ -90,8 +93,8 @@
   </section>
 
   <section id="docs" hidden>
-    <h1 class="page">各種書類（領収書・明細書など）</h1>
-    <p class="lead" id="docs-lead">ご来院の翌日以降に表示されます。紙の領収書も、これまでどおりお渡ししています。</p>
+    <h1 class="page">各種書類（領収書・検査結果など）</h1>
+    <p class="lead" id="docs-lead">領収書・明細書はご来院の翌日以降に表示されます。検査結果は、結果をご説明した受診のあとに表示されます。</p>
     <details class="person" open>
       <summary>
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.5" r="4.5" fill="#1062B0"/><path d="M3 22c0-5 4-8.5 9-8.5s9 3.5 9 8.5z" fill="#1062B0"/></svg>
@@ -192,47 +195,67 @@
     const { documents } = await api("documents");
     const body = $("docs-body");
     body.textContent = "";
-    const LABELS = { receipt: "領収書", meisai: "明細書" };
-    const published = documents.filter((d) => (d.kind in LABELS) && d.status === "published");
+    const published = documents.filter((d) => d.status === "published");
     const corrected = new Set(documents.filter((d) => d.status === "superseded").map((d) => `${d.visit_date}|${d.kind}`));
-    if (!published.length) {
-      const p = document.createElement("p");
-      p.className = "muted";
-      p.textContent = "表示できる書類はまだありません。登録直後は、準備ができるまで少しお待ちください。";
-      body.appendChild(p);
-    }
-    // 受診日ごとに 1 行 (同じ日に複数の請求書があれば件数分のボタン)
-    const byDate = new Map();
-    for (const d of published) {
-      if (!byDate.has(d.visit_date)) byDate.set(d.visit_date, []);
-      byDate.get(d.visit_date).push(d);
-    }
-    let year = null;
-    for (const [date, docs] of byDate) {
-      const y = date.slice(0, 4);
-      if (y !== year) {
-        year = y;
-        const h = document.createElement("div"); h.className = "year"; h.textContent = `${y}年`; body.appendChild(h);
+
+    function badges(docs) {
+      const wrap = document.createElement("div"); wrap.className = "sub";
+      if (docs.some((d) => d.is_demo)) {
+        const b = document.createElement("span"); b.className = "badge demo"; b.textContent = "デモ"; wrap.appendChild(b);
       }
-      const row = document.createElement("div"); row.className = "doc";
-      const left = document.createElement("div");
-      const title = document.createElement("div"); title.className = "title"; title.textContent = fmtDate(date);
-      left.append(title);
-      if (docs.some((d) => d.version > 1 || corrected.has(`${date}|${d.kind}`))) {
-        const sub = document.createElement("div"); sub.className = "sub";
-        const b = document.createElement("span"); b.className = "badge"; b.style.marginLeft = "0"; b.textContent = "訂正済み";
-        sub.appendChild(b); left.appendChild(sub);
+      if (docs.some((d) => d.version > 1 || corrected.has(`${d.visit_date}|${d.kind}`))) {
+        const b = document.createElement("span"); b.className = "badge"; b.textContent = "訂正済み"; wrap.appendChild(b);
       }
-      const btns = document.createElement("div"); btns.className = "btns";
-      docs.sort((a, b) => (a.kind === "receipt" ? 0 : 1) - (b.kind === "receipt" ? 0 : 1));
+      return wrap.childElementCount ? wrap : null;
+    }
+
+    // 1 セクション = 見出し + 年ごと + 日付ごとの行 (行のボタンは kind ごと)
+    function section(title, kinds, dateLabel, subLabel, emptyText) {
+      const h = document.createElement("div"); h.className = "section-title"; h.textContent = title; body.appendChild(h);
+      const docs = published.filter((d) => kinds[d.kind]);
+      if (!docs.length) {
+        const p = document.createElement("div"); p.className = "empty"; p.textContent = emptyText; body.appendChild(p);
+        return;
+      }
+      const byDate = new Map();
       for (const d of docs) {
-        const btn = document.createElement("button"); btn.textContent = LABELS[d.kind];
-        btn.addEventListener("click", () => openDocument(d.document_id, btn));
-        btns.appendChild(btn);
+        if (!byDate.has(d.visit_date)) byDate.set(d.visit_date, []);
+        byDate.get(d.visit_date).push(d);
       }
-      row.append(left, btns);
-      body.appendChild(row);
+      let year = null;
+      for (const [date, ds] of byDate) {
+        const y = date.slice(0, 4);
+        if (y !== year) {
+          year = y;
+          const yh = document.createElement("div"); yh.className = "year"; yh.textContent = `${y}年`; body.appendChild(yh);
+        }
+        const row = document.createElement("div"); row.className = "doc";
+        const left = document.createElement("div");
+        const t = document.createElement("div"); t.className = "title"; t.textContent = `${dateLabel}${fmtDate(date)}`;
+        left.appendChild(t);
+        const rep = ds.find((d) => d.report_date);
+        if (subLabel && rep) {
+          const sub = document.createElement("div"); sub.className = "sub"; sub.textContent = `${subLabel}${fmtDate(rep.report_date)}`;
+          left.appendChild(sub);
+        }
+        const bd = badges(ds); if (bd) left.appendChild(bd);
+        const btns = document.createElement("div"); btns.className = "btns";
+        const order = Object.keys(kinds);
+        ds.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+        for (const d of ds) {
+          const btn = document.createElement("button"); btn.textContent = kinds[d.kind];
+          btn.addEventListener("click", () => openDocument(d.document_id, btn));
+          btns.appendChild(btn);
+        }
+        row.append(left, btns);
+        body.appendChild(row);
+      }
     }
+
+    section("検査結果", { lab: "結果" }, "採取日 ", "報告日 ", "表示できる検査結果はありません。");
+    section("健診結果", { kenshin: "個人票" }, "受診日 ", null, "表示できる健診結果はありません。");
+    section("領収書・明細書", { receipt: "領収書", meisai: "明細書" }, "", null,
+            "表示できる書類はまだありません。登録直後は、準備ができるまで少しお待ちください。");
     show("docs");
   }
 
