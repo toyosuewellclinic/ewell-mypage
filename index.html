@@ -2,64 +2,224 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
-<title>豊洲イーウェルクリニック マイページ（接続テスト）</title>
+<meta name="robots" content="noindex, nofollow">
+<title>豊洲イーウェルクリニック マイページ</title>
 <style>
-  :root { color-scheme: light; --fg: #1f2933; --muted: #52606d; --ok: #1e7e34; --ng: #b42318; --bg: #f7f8fa; }
-  body { margin: 0; padding: 24px 16px; font: 16px/1.6 -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; color: var(--fg); background: var(--bg); }
-  main { max-width: 480px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-  h1 { font-size: 18px; margin: 0 0 16px; }
-  .status { font-size: 20px; font-weight: 600; margin: 8px 0; }
-  .ok { color: var(--ok); } .ng { color: var(--ng); }
-  .code { font: 600 28px/1.2 ui-monospace, Menlo, monospace; letter-spacing: .12em; margin: 12px 0; }
-  p.note { color: var(--muted); font-size: 14px; }
+  :root {
+    color-scheme: light;
+    --bg: #f5f6f8; --card: #ffffff; --fg: #1d2530; --muted: #5b6776; --line: #e3e7ec;
+    --accent: #0f6e5a; --accent-fg: #ffffff; --warn-bg: #fff4e5; --warn-fg: #8a4b00; --err: #b42318;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px 16px 40px; background: var(--bg); color: var(--fg);
+         font: 16px/1.65 -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+  header { max-width: 520px; margin: 0 auto 12px; display: flex; align-items: baseline; justify-content: space-between; }
+  header h1 { font-size: 17px; margin: 0; }
+  header span { font-size: 12px; color: var(--muted); }
+  main { max-width: 520px; margin: 0 auto; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 12px; }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  p { margin: 0 0 10px; }
+  .muted { color: var(--muted); font-size: 14px; }
+  ul.consent { margin: 0 0 12px; padding-left: 1.2em; font-size: 14px; }
+  ul.consent li { margin-bottom: 6px; }
+  label { display: block; font-size: 14px; font-weight: 600; margin: 12px 0 4px; }
+  input[type=text], input[type=date] { width: 100%; font-size: 17px; padding: 10px 12px; border: 1px solid #c9d0d8; border-radius: 8px; background: #fff; }
+  .check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; margin: 12px 0; }
+  .check input { margin-top: 4px; width: 18px; height: 18px; }
+  button { width: 100%; font-size: 16px; font-weight: 600; padding: 12px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-fg); }
+  button:disabled { opacity: .45; }
+  button.secondary { background: #fff; color: var(--accent); border: 1px solid var(--accent); margin-top: 8px; }
+  .msg { font-size: 14px; margin-top: 10px; }
+  .msg.err { color: var(--err); }
+  .notice { background: var(--warn-bg); color: var(--warn-fg); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+  .year { font-size: 13px; color: var(--muted); margin: 14px 2px 6px; font-weight: 600; }
+  .doc { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .doc:first-of-type { border-top: 0; }
+  .doc .title { font-weight: 600; }
+  .doc .sub { font-size: 13px; color: var(--muted); }
+  .doc button { width: auto; padding: 8px 14px; font-size: 14px; }
+  .badge { display: inline-block; font-size: 12px; padding: 1px 6px; border-radius: 6px; background: #eef1f4; color: var(--muted); margin-left: 6px; }
+  a { color: var(--accent); }
 </style>
 </head>
 <body>
+<header><h1>豊洲イーウェルクリニック マイページ</h1><span id="ver"></span></header>
 <main>
-  <h1>マイページ 接続テスト</h1>
-  <div id="status" class="status">確認中…</div>
-  <div id="code" class="code" hidden></div>
-  <p class="note">このページは院内の接続確認用です。診療情報は表示しません。</p>
+  <section id="loading" class="card"><p>読み込み中…</p></section>
+
+  <section id="consent" class="card" hidden>
+    <h2>マイページのご利用にあたって</h2>
+    <p class="muted">（2026年9月15日版）</p>
+    <ul class="consent">
+      <li>このページでは、当院が発行した領収書を、ご本人がLINEから確認・保存できます。</li>
+      <li>ご本人確認のため、LINEのアカウントを識別する番号と、入力いただいた生年月日を照合に使います。LINEのお名前・プロフィール画像・トーク内容は取得しません。</li>
+      <li>同意いただいた方の領収書は、当院が委託するクラウドサービス（Supabase Inc.／データの保管場所は日本）に保管し、ご本人だけが見られるようにします。</li>
+      <li>不正利用を防ぐため、閲覧の記録を保存します。</li>
+      <li>紙の領収書は、これまでどおりお渡しします。</li>
+      <li>利用をやめたいときは、受付にお申し出ください。登録を解除し、掲載した領収書を削除します。</li>
+    </ul>
+    <p class="muted"><a href="https://ewell-clinic.com/%E5%80%8B%E4%BA%BA%E6%83%85%E5%A0%B1%E4%BF%9D%E8%AD%B7%E6%96%B9%E9%87%9D-%E3%83%9A%E3%83%BC%E3%82%B8" target="_blank" rel="noopener">個人情報保護方針</a></p>
+
+    <div id="code-area" hidden>
+      <p class="notice">受付・会計でお渡しする「確認コード」（8けた）が必要です。</p>
+      <label for="code">確認コード</label>
+      <input id="code" type="text" inputmode="text" autocomplete="one-time-code" maxlength="12" placeholder="例：7K3M-9Q2X">
+    </div>
+    <label for="birthdate">生年月日</label>
+    <input id="birthdate" type="date" min="1900-01-01">
+    <div class="check"><input id="agree" type="checkbox"><label for="agree" style="margin:0;font-weight:400">上記に同意します</label></div>
+    <button id="link-btn" disabled>同意して次へ</button>
+    <button id="use-code" class="secondary" hidden>確認コードで登録する</button>
+    <div id="link-msg" class="msg" role="status"></div>
+  </section>
+
+  <section id="docs" class="card" hidden>
+    <h2>領収書</h2>
+    <div id="docs-body"></div>
+    <p class="muted" style="margin-top:12px">新しい領収書は、ご来院の翌日以降に表示されます。</p>
+  </section>
+
+  <section id="error" class="card" hidden><p id="error-text" class="msg err"></p></section>
 </main>
+
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
-  // 秘密情報はここに置かない (LIFF ID と関数 URL は公開情報)
+  // 秘密情報は置かない (LIFF ID・API の URL は公開情報)。診療情報はサーバが本人確認のうえ返す
   const LIFF_ID = "2011602906-LXBa22oF";
-  const VERIFY_URL = "https://imabaumalsjptopdiuad.supabase.co/functions/v1/line-verify-probe";
-  const statusEl = document.getElementById("status");
-  const codeEl = document.getElementById("code");
+  const API = "https://imabaumalsjptopdiuad.supabase.co/functions/v1/portal";
+  const $ = (id) => document.getElementById(id);
+  let consentVersion = null;
+  let codeMode = false;
 
-  function show(ok, text) {
-    statusEl.textContent = text;
-    statusEl.className = "status " + (ok ? "ok" : "ng");
+  const LINK_MESSAGES = {
+    mismatch: "生年月日が登録内容と一致しませんでした。もう一度ご確認ください。",
+    no_candidate: "LINEの登録が見つかりませんでした。受付でお渡しする確認コードで登録してください。",
+    ambiguous: "ご家族で同じLINEをお使いのようです。受付でお渡しする確認コードで登録してください。",
+    code_invalid: "確認コードが正しくないか、有効期限（10分）が切れています。受付で再発行してください。",
+    already_linked: "この方は別のLINEで登録済みです。受付にお申し出ください。",
+    rate_limited: "入力の誤りが続いたため、一時的に登録できません。24時間後にお試しいただくか、受付にお申し出ください。",
+    invalid_birthdate: "生年月日を正しく入力してください。",
+    invalid_input: "確認コードと生年月日を正しく入力してください。",
+    consent_required: "同意内容が更新されました。ページを開き直してください。",
+  };
+
+  function show(id) {
+    for (const s of ["loading", "consent", "docs", "error"]) $(s).hidden = s !== id;
+  }
+  function fail(text) { $("error-text").textContent = text; show("error"); }
+
+  async function api(action, extra = {}) {
+    const idToken = liff.getIDToken();
+    if (!idToken) throw new Error("no_token");
+    const res = await fetch(API, {
+      method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", referrerPolicy: "no-referrer",
+      body: JSON.stringify({ action, id_token: idToken, ...extra }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (res.status === 401) { liff.login(); throw new Error("relogin"); }
+    if (!res.ok) throw new Error(body.error || String(res.status));
+    return body;
+  }
+
+  function setCodeMode(on) {
+    codeMode = on;
+    $("code-area").hidden = !on;
+    $("use-code").hidden = on;
+  }
+
+  function updateLinkButton() {
+    const ok = $("agree").checked && $("birthdate").value && (!codeMode || $("code").value.trim().length >= 8);
+    $("link-btn").disabled = !ok;
+  }
+
+  async function link() {
+    $("link-btn").disabled = true;
+    $("link-msg").className = "msg"; $("link-msg").textContent = "確認しています…";
+    try {
+      const r = codeMode
+        ? await api("link_code", { code: $("code").value, birthdate: $("birthdate").value, consent_version: consentVersion })
+        : await api("link_birthdate", { birthdate: $("birthdate").value, consent_version: consentVersion });
+      if (r.result === "ok") { await loadDocuments(); return; }
+      $("link-msg").className = "msg err";
+      $("link-msg").textContent = LINK_MESSAGES[r.result] || "登録できませんでした。受付にお申し出ください。";
+      if (r.result === "no_candidate" || r.result === "ambiguous") setCodeMode(true);
+    } catch (e) {
+      if (e.message !== "relogin") { $("link-msg").className = "msg err"; $("link-msg").textContent = "通信に失敗しました。時間をおいてお試しください。"; }
+    } finally { updateLinkButton(); }
+  }
+
+  function fmtDate(iso) {
+    const [y, m, d] = iso.split("-").map(Number);
+    return `${y}年${m}月${d}日`;
+  }
+
+  async function openDocument(id, btn) {
+    btn.disabled = true;
+    try {
+      const r = await api("document_url", { document_id: id });
+      // LINE 内ブラウザは PDF 保存が不安定 → 外部ブラウザで開く
+      liff.openWindow({ url: r.url, external: true });
+    } catch (e) {
+      if (e.message !== "relogin") alert("開けませんでした。時間をおいてお試しください。");
+    } finally { btn.disabled = false; }
+  }
+
+  async function loadDocuments() {
+    show("loading");
+    const { documents } = await api("documents");
+    const body = $("docs-body");
+    body.textContent = "";
+    const receipts = documents.filter((d) => d.kind === "receipt" && d.status === "published");
+    if (!receipts.length) {
+      const p = document.createElement("p");
+      p.className = "muted";
+      p.textContent = "表示できる領収書はまだありません。登録直後は、準備ができるまで少しお待ちください。";
+      body.appendChild(p);
+    }
+    const corrected = new Set(documents.filter((d) => d.status === "superseded").map((d) => `${d.visit_date}`));
+    let year = null;
+    for (const d of receipts) {
+      const y = d.visit_date.slice(0, 4);
+      if (y !== year) {
+        year = y;
+        const h = document.createElement("div"); h.className = "year"; h.textContent = `${y}年`; body.appendChild(h);
+      }
+      const row = document.createElement("div"); row.className = "doc";
+      const left = document.createElement("div");
+      const title = document.createElement("div"); title.className = "title"; title.textContent = fmtDate(d.visit_date);
+      const sub = document.createElement("div"); sub.className = "sub"; sub.textContent = "診療費請求書兼領収書";
+      if (d.version > 1 || corrected.has(d.visit_date)) {
+        const b = document.createElement("span"); b.className = "badge"; b.textContent = "訂正済み"; sub.appendChild(b);
+      }
+      left.append(title, sub);
+      const btn = document.createElement("button"); btn.textContent = "開く";
+      btn.addEventListener("click", () => openDocument(d.document_id, btn));
+      row.append(left, btn);
+      body.appendChild(row);
+    }
+    show("docs");
   }
 
   (async () => {
     try {
       await liff.init({ liffId: LIFF_ID });
       if (!liff.isLoggedIn()) { liff.login(); return; }
-      const idToken = liff.getIDToken();
-      if (!idToken) { show(false, "LINEの認証情報を受け取れませんでした"); return; }
-      // id_token は URL に載せず POST 本文で送る
-      const res = await fetch(VERIFY_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id_token: idToken }),
-        cache: "no-store",
-        referrerPolicy: "no-referrer",
-      });
-      const body = await res.json().catch(() => ({}));
-      if (res.ok && body.verified) {
-        show(true, "LINE認証 OK");
-        codeEl.textContent = body.code;
-        codeEl.hidden = false;
-      } else {
-        show(false, "LINE認証 NG（" + (body.error || res.status) + "）");
-      }
+      const s = await api("session");
+      consentVersion = s.consent_version;
+      $("ver").textContent = "";
+      if (s.linked_patients > 0) { await loadDocuments(); return; }
+      setCodeMode(!s.has_candidate);
+      $("birthdate").max = new Date().toISOString().slice(0, 10);
+      for (const id of ["agree", "birthdate", "code"]) $(id).addEventListener("input", updateLinkButton);
+      $("agree").addEventListener("change", updateLinkButton);
+      $("use-code").addEventListener("click", () => { setCodeMode(true); updateLinkButton(); });
+      $("link-btn").addEventListener("click", link);
+      show("consent");
     } catch (e) {
-      show(false, "エラー: " + (e && e.name ? e.name : "unknown"));
+      if (e.message !== "relogin") fail("読み込みに失敗しました。時間をおいて開き直してください。");
     }
   })();
 </script>
