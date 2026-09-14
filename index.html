@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>豊洲イーウェルクリニック マイページ（接続テスト）</title>
+<style>
+  :root { color-scheme: light; --fg: #1f2933; --muted: #52606d; --ok: #1e7e34; --ng: #b42318; --bg: #f7f8fa; }
+  body { margin: 0; padding: 24px 16px; font: 16px/1.6 -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; color: var(--fg); background: var(--bg); }
+  main { max-width: 480px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  h1 { font-size: 18px; margin: 0 0 16px; }
+  .status { font-size: 20px; font-weight: 600; margin: 8px 0; }
+  .ok { color: var(--ok); } .ng { color: var(--ng); }
+  .code { font: 600 28px/1.2 ui-monospace, Menlo, monospace; letter-spacing: .12em; margin: 12px 0; }
+  p.note { color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>マイページ 接続テスト</h1>
+  <div id="status" class="status">確認中…</div>
+  <div id="code" class="code" hidden></div>
+  <p class="note">このページは院内の接続確認用です。診療情報は表示しません。</p>
+</main>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+  // 秘密情報はここに置かない (LIFF ID と関数 URL は公開情報)
+  const LIFF_ID = "2011602906-LXBa22oF";
+  const VERIFY_URL = "https://imabaumalsjptopdiuad.supabase.co/functions/v1/line-verify-probe";
+  const statusEl = document.getElementById("status");
+  const codeEl = document.getElementById("code");
+
+  function show(ok, text) {
+    statusEl.textContent = text;
+    statusEl.className = "status " + (ok ? "ok" : "ng");
+  }
+
+  (async () => {
+    try {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+      const idToken = liff.getIDToken();
+      if (!idToken) { show(false, "LINEの認証情報を受け取れませんでした"); return; }
+      // id_token は URL に載せず POST 本文で送る
+      const res = await fetch(VERIFY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_token: idToken }),
+        cache: "no-store",
+        referrerPolicy: "no-referrer",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.verified) {
+        show(true, "LINE認証 OK");
+        codeEl.textContent = body.code;
+        codeEl.hidden = false;
+      } else {
+        show(false, "LINE認証 NG（" + (body.error || res.status) + "）");
+      }
+    } catch (e) {
+      show(false, "エラー: " + (e && e.name ? e.name : "unknown"));
+    }
+  })();
+</script>
+</body>
+</html>
