@@ -40,7 +40,8 @@
   .doc:first-of-type { border-top: 0; }
   .doc .title { font-weight: 600; }
   .doc .sub { font-size: 13px; color: var(--muted); }
-  .doc button { width: auto; padding: 8px 14px; font-size: 14px; }
+  .doc .btns { display: flex; gap: 6px; flex-shrink: 0; }
+  .doc button { width: auto; padding: 8px 12px; font-size: 14px; }
   .badge { display: inline-block; font-size: 12px; padding: 1px 6px; border-radius: 6px; background: #eef1f4; color: var(--muted); margin-left: 6px; }
   a { color: var(--accent); }
 </style>
@@ -54,12 +55,12 @@
     <h2>マイページのご利用にあたって</h2>
     <p class="muted">（2026年9月15日版）</p>
     <ul class="consent">
-      <li>このページでは、当院が発行した領収書を、ご本人がLINEから確認・保存できます。</li>
+      <li>このページでは、当院が発行した領収書・診療明細書を、ご本人がLINEから確認・保存できます。</li>
       <li>ご本人確認のため、LINEのアカウントを識別する番号と、入力いただいた生年月日を照合に使います。LINEのお名前・プロフィール画像・トーク内容は取得しません。</li>
-      <li>同意いただいた方の領収書は、当院が委託するクラウドサービス（Supabase Inc.／データの保管場所は日本）に保管し、ご本人だけが見られるようにします。</li>
+      <li>同意いただいた方の領収書・診療明細書は、当院が委託するクラウドサービス（Supabase Inc.／データの保管場所は日本）に保管し、ご本人だけが見られるようにします。</li>
       <li>不正利用を防ぐため、閲覧の記録を保存します。</li>
       <li>紙の領収書は、これまでどおりお渡しします。</li>
-      <li>利用をやめたいときは、受付にお申し出ください。登録を解除し、掲載した領収書を削除します。</li>
+      <li>利用をやめたいときは、受付にお申し出ください。登録を解除し、掲載した書類を削除します。</li>
     </ul>
     <p class="muted"><a href="https://ewell-clinic.com/%E5%80%8B%E4%BA%BA%E6%83%85%E5%A0%B1%E4%BF%9D%E8%AD%B7%E6%96%B9%E9%87%9D-%E3%83%9A%E3%83%BC%E3%82%B8" target="_blank" rel="noopener">個人情報保護方針</a></p>
 
@@ -77,7 +78,7 @@
   </section>
 
   <section id="docs" class="card" hidden>
-    <h2>領収書</h2>
+    <h2>領収書・明細書</h2>
     <div id="docs-body"></div>
     <p class="muted" style="margin-top:12px">新しい領収書は、ご来院の翌日以降に表示されます。</p>
   </section>
@@ -172,32 +173,44 @@
     const { documents } = await api("documents");
     const body = $("docs-body");
     body.textContent = "";
-    const receipts = documents.filter((d) => d.kind === "receipt" && d.status === "published");
-    if (!receipts.length) {
+    const LABELS = { receipt: "領収書", meisai: "明細書" };
+    const published = documents.filter((d) => (d.kind in LABELS) && d.status === "published");
+    const corrected = new Set(documents.filter((d) => d.status === "superseded").map((d) => `${d.visit_date}|${d.kind}`));
+    if (!published.length) {
       const p = document.createElement("p");
       p.className = "muted";
-      p.textContent = "表示できる領収書はまだありません。登録直後は、準備ができるまで少しお待ちください。";
+      p.textContent = "表示できる書類はまだありません。登録直後は、準備ができるまで少しお待ちください。";
       body.appendChild(p);
     }
-    const corrected = new Set(documents.filter((d) => d.status === "superseded").map((d) => `${d.visit_date}`));
+    // 受診日ごとに 1 行 (同じ日に複数の請求書があれば件数分のボタン)
+    const byDate = new Map();
+    for (const d of published) {
+      if (!byDate.has(d.visit_date)) byDate.set(d.visit_date, []);
+      byDate.get(d.visit_date).push(d);
+    }
     let year = null;
-    for (const d of receipts) {
-      const y = d.visit_date.slice(0, 4);
+    for (const [date, docs] of byDate) {
+      const y = date.slice(0, 4);
       if (y !== year) {
         year = y;
         const h = document.createElement("div"); h.className = "year"; h.textContent = `${y}年`; body.appendChild(h);
       }
       const row = document.createElement("div"); row.className = "doc";
       const left = document.createElement("div");
-      const title = document.createElement("div"); title.className = "title"; title.textContent = fmtDate(d.visit_date);
-      const sub = document.createElement("div"); sub.className = "sub"; sub.textContent = "診療費請求書兼領収書";
-      if (d.version > 1 || corrected.has(d.visit_date)) {
+      const title = document.createElement("div"); title.className = "title"; title.textContent = fmtDate(date);
+      const sub = document.createElement("div"); sub.className = "sub"; sub.textContent = "診療費請求書兼領収書・診療費明細書";
+      if (docs.some((d) => d.version > 1 || corrected.has(`${date}|${d.kind}`))) {
         const b = document.createElement("span"); b.className = "badge"; b.textContent = "訂正済み"; sub.appendChild(b);
       }
       left.append(title, sub);
-      const btn = document.createElement("button"); btn.textContent = "開く";
-      btn.addEventListener("click", () => openDocument(d.document_id, btn));
-      row.append(left, btn);
+      const btns = document.createElement("div"); btns.className = "btns";
+      docs.sort((a, b) => (a.kind === "receipt" ? 0 : 1) - (b.kind === "receipt" ? 0 : 1));
+      for (const d of docs) {
+        const btn = document.createElement("button"); btn.textContent = LABELS[d.kind];
+        btn.addEventListener("click", () => openDocument(d.document_id, btn));
+        btns.appendChild(btn);
+      }
+      row.append(left, btns);
       body.appendChild(row);
     }
     show("docs");
