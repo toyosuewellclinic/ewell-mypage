@@ -12,13 +12,14 @@
     code_invalid: "確認コードが正しくないか、有効期限（10分）が切れています。受付で再発行してください。",
     already_linked: "この方は別のLINEで登録済みです。受付にお申し出ください。",
     rate_limited: "入力の誤りが続いたため、一時的に登録できません。24時間後にお試しいただくか、受付にお申し出ください。",
+    revoked: "この方のマイページは利用を停止しています。再開をご希望の場合は受付にお申し出ください。",
     invalid_birthdate: "生年月日を正しく入力してください。",
     invalid_input: "確認コードと生年月日を正しく入力してください。",
     consent_required: "同意内容が更新されました。ページを開き直してください。",
   };
 
   function show(id) {
-    for (const s of ["loading", "consent", "docs", "error"]) $(s).hidden = s !== id;
+    for (const s of ["loading", "consent", "docs", "withdraw", "withdrawn", "error"]) $(s).hidden = s !== id;
   }
   function fail(text) { $("error-text").textContent = text; show("error"); }
 
@@ -30,7 +31,23 @@
       body: JSON.stringify({ action, id_token: idToken, ...extra }),
     });
     const body = await res.json().catch(() => ({}));
-    if (res.status === 401) { liff.login(); throw new Error("relogin"); }
+    if (res.status === 401) {
+      // 再ログインは 2 分に 1 回まで (Fable M5: 401 が続くと liff.login() の無限リダイレクトになる)
+      // sessionStorage に記録できない環境では自動の再ログインをしない (記録できないとループを止められない)
+      let canRelogin = false;
+      try {
+        const last = Number(sessionStorage.getItem("mypage_relogin_at") || 0);
+        if (Date.now() - last > 120000) {
+          const stamp = String(Date.now());
+          sessionStorage.setItem("mypage_relogin_at", stamp);
+          canRelogin = sessionStorage.getItem("mypage_relogin_at") === stamp;
+        }
+      } catch (_) { canRelogin = false; }
+      if (canRelogin) { liff.login(); throw new Error("relogin"); }
+      throw new Error("unauthenticated");
+    }
+    if (res.status === 429) throw new Error("rate_limited");
+    if (res.status === 503) throw new Error("unavailable");
     if (!res.ok) throw new Error(body.error || String(res.status));
     return body;
   }
@@ -55,7 +72,7 @@
         : await api("link_birthdate", { birthdate: $("birthdate").value, consent_version: consentVersion });
       if (r.result === "ok") { await loadDocuments(); return; }
       $("link-msg").className = "msg err";
-      $("link-msg").textContent = LINK_MESSAGES[r.result] || "登録できませんでした。受付にお申し出ください。";
+      $("link-msg").textContent = (Object.prototype.hasOwnProperty.call(LINK_MESSAGES, r.result) && LINK_MESSAGES[r.result]) || "登録できませんでした。受付にお申し出ください。";
       if (r.result === "no_candidate" || r.result === "ambiguous") setCodeMode(true);
     } catch (e) {
       if (e.message !== "relogin") { $("link-msg").className = "msg err"; $("link-msg").textContent = "通信に失敗しました。時間をおいてお試しください。"; }
@@ -111,7 +128,8 @@
     if (!id) return;
     if (btn) btn.disabled = true;
     try {
-      const r = await api("document_url", { document_id: id });  // 署名 URL は 5 分で切れるので取り直す
+      // 署名 URL は 5 分で切れるので取り直す。保存用は attachment 指定の URL (閲覧用 URL を履歴に残さない / Fable L12)
+      const r = await api("document_url", { document_id: id, purpose: "save" });
       liff.openWindow({ url: r.url, external: true });
     } catch (e) {
       if (e.message !== "relogin") alert("開けませんでした。時間をおいてお試しください。");
@@ -234,6 +252,48 @@
     show("docs");
   }
 
+  // ---- 利用をやめる (本人の利用停止) ---------------------------------------------
+  const WITHDRAW_MESSAGES = {
+    mismatch: "生年月日が登録内容と一致しませんでした。もう一度ご確認ください。",
+    rate_limited: "入力の誤りが続いたため、一時的に手続きできません。24時間後にお試しいただくか、受付にお申し出ください。",
+    not_linked: "このLINEには、利用中のマイページ登録がありません。",
+    invalid_birthdate: "生年月日を正しく入力してください。",
+  };
+
+  function updateWithdrawButton() {
+    $("withdraw-btn").disabled = !($("w-agree").checked && $("w-birthdate").value);
+  }
+
+  function openWithdraw() {
+    $("w-birthdate").value = ""; $("w-agree").checked = false; $("w-msg").textContent = "";
+    $("w-birthdate").max = new Date().toISOString().slice(0, 10);
+    updateWithdrawButton();
+    show("withdraw");
+    window.scrollTo(0, 0);
+  }
+
+  async function withdraw() {
+    // 最終確認 (押し間違い防止の 2 段目)
+    if (!window.confirm("マイページの利用をやめて、掲載している書類をすべて削除します。よろしいですか？")) return;
+    $("withdraw-btn").disabled = true;
+    $("w-msg").className = "msg"; $("w-msg").textContent = "手続きしています…";
+    try {
+      const r = await api("withdraw", { birthdate: $("w-birthdate").value, confirm: true });
+      if (r.result === "ok") { show("withdrawn"); window.scrollTo(0, 0); return; }
+      $("w-msg").className = "msg err";
+      $("w-msg").textContent = (Object.prototype.hasOwnProperty.call(WITHDRAW_MESSAGES, r.result) && WITHDRAW_MESSAGES[r.result])
+        || "手続きできませんでした。受付にお申し出ください。";
+    } catch (e) {
+      if (e.message !== "relogin") { $("w-msg").className = "msg err"; $("w-msg").textContent = "通信に失敗しました。時間をおいてお試しください。"; }
+    } finally { updateWithdrawButton(); }
+  }
+
+  $("withdraw-open").addEventListener("click", openWithdraw);
+  $("withdraw-cancel").addEventListener("click", () => { show("docs"); });
+  $("w-agree").addEventListener("change", updateWithdrawButton);
+  $("w-birthdate").addEventListener("input", updateWithdrawButton);
+  $("withdraw-btn").addEventListener("click", withdraw);
+
   (async () => {
     try {
       await liff.init({ liffId: LIFF_ID });
@@ -249,6 +309,7 @@
       $("link-btn").addEventListener("click", link);
       show("consent");
     } catch (e) {
-      if (e.message !== "relogin") fail("読み込みに失敗しました。時間をおいて開き直してください。");
+      if (e.message === "unauthenticated") fail("ログインを確認できませんでした。LINEを開き直してからお試しください。");
+      else if (e.message !== "relogin") fail("読み込みに失敗しました。時間をおいて開き直してください。");
     }
   })();

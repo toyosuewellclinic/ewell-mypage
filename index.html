@@ -74,6 +74,9 @@
   #vstatus { text-align: center; font-size: 14px; color: var(--muted); padding: 24px 12px; }
   #vstatus button { width: auto; margin-top: 12px; padding: 9px 16px; }
   body.viewing { overflow: hidden; }
+  .withdraw-link { text-align: center; margin: 22px 0 8px; }
+  button.linklike { width: auto; background: none; border: 0; padding: 6px; color: var(--muted); font-size: 13px; font-weight: 400; text-decoration: underline; }
+  button.danger { background: var(--err); color: #fff; }
 </style>
 </head>
 <body>
@@ -83,14 +86,14 @@
 
   <section id="consent" class="card" hidden>
     <h2>マイページのご利用にあたって</h2>
-    <p class="muted">（2026年9月15日版）</p>
+    <p class="muted">（2026年9月15日版・改訂1）</p>
     <ul class="consent">
       <li>このページでは、当院が発行した領収書・診療明細書を、ご本人がLINEから確認・保存できます。</li>
       <li>ご本人確認のため、LINEのアカウントを識別する番号と、入力いただいた生年月日を照合に使います。LINEのお名前・プロフィール画像・トーク内容は取得しません。</li>
       <li>同意いただいた方の領収書・診療明細書は、当院が委託するクラウドサービス（Supabase Inc.／データの保管場所は日本）に保管し、ご本人だけが見られるようにします。</li>
       <li>不正利用を防ぐため、閲覧の記録を保存します。</li>
       <li>紙の領収書は、これまでどおりお渡しします。</li>
-      <li>利用をやめたいときは、受付にお申し出ください。登録を解除し、掲載した書類を削除します。</li>
+      <li>利用をやめたいときは、この画面の「マイページの利用をやめる」から、または受付にお申し出ください。登録を解除し、掲載した書類を削除します。</li>
     </ul>
     <p class="muted"><a href="https://ewell-clinic.com/%E5%80%8B%E4%BA%BA%E6%83%85%E5%A0%B1%E4%BF%9D%E8%AD%B7%E6%96%B9%E9%87%9D-%E3%83%9A%E3%83%BC%E3%82%B8" target="_blank" rel="noopener">個人情報保護方針</a></p>
 
@@ -118,6 +121,29 @@
       </summary>
       <div class="panel" id="docs-body"></div>
     </details>
+    <p class="withdraw-link"><button id="withdraw-open" type="button" class="linklike">マイページの利用をやめる</button></p>
+  </section>
+
+  <section id="withdraw" class="card" hidden>
+    <h2>マイページの利用をやめる</h2>
+    <ul class="consent">
+      <li>このLINEとの登録を解除し、マイページに掲載している領収書・明細書・検査結果などを<strong>すべて削除</strong>します。</li>
+      <li>紙の領収書や、当院のカルテ・記録は削除されません。</li>
+      <li>もう一度使いたくなったときは、受付にお申し出ください（この画面からは再開できません）。</li>
+      <li>手続きが終わると、このLINEに「マイページの利用を停止しました」とお知らせします。</li>
+    </ul>
+    <label for="w-birthdate">確認のため、生年月日を入力してください</label>
+    <input id="w-birthdate" type="date" min="1900-01-01">
+    <div class="check"><input id="w-agree" type="checkbox"><label for="w-agree" style="margin:0;font-weight:400">書類がすべて削除されることを理解しました</label></div>
+    <button id="withdraw-btn" type="button" class="danger" disabled>利用をやめる</button>
+    <button id="withdraw-cancel" type="button" class="secondary">やめずに戻る</button>
+    <div id="w-msg" class="msg" role="status"></div>
+  </section>
+
+  <section id="withdrawn" class="card" hidden>
+    <h2>利用を停止しました</h2>
+    <p>マイページの登録を解除し、掲載していた書類を削除しました。</p>
+    <p class="muted">もう一度ご利用になりたいときは、受付にお申し出ください。</p>
   </section>
 
   <section id="error" class="card" hidden><p id="error-text" class="msg err"></p></section>
