@@ -288,6 +288,7 @@
     } finally { updateWithdrawButton(); }
   }
 
+  $("build").textContent = "画面の版 2026-09-15.2";
   $("withdraw-open").addEventListener("click", openWithdraw);
   $("withdraw-cancel").addEventListener("click", () => { show("docs"); });
   $("w-agree").addEventListener("change", updateWithdrawButton);
