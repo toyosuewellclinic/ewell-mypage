@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; connect-src https://imabaumalsjptopdiuad.supabase.co; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>配信の停止 | 豊洲イーウェルクリニック</title>
+<style>
+  :root { color-scheme: light; --brand: #1062B0; --fg: #1d2530; --muted: #5b6776; --line: #d9dde1; --err: #b42318; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px 16px 48px; background: #fff; color: var(--fg);
+         font: 16px/1.8 -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+  main { max-width: 460px; margin: 0 auto; }
+  .brand { display: flex; justify-content: center; margin-bottom: 24px; }
+  .brand img { height: 52px; width: auto; }
+  h1 { text-align: center; font-size: 20px; margin: 0 0 18px; color: #3a4552; }
+  .card { border: 1px solid var(--line); border-radius: 8px; padding: 20px; }
+  p { margin: 0 0 14px; }
+  .muted { color: var(--muted); font-size: 14px; }
+  button { width: 100%; min-height: 48px; border: 0; border-radius: 6px; background: var(--brand); color: #fff;
+           font: inherit; font-weight: 700; cursor: pointer; }
+  button:disabled { opacity: .55; cursor: default; }
+  .err { color: var(--err); font-weight: 700; }
+  [hidden] { display: none !important; }
+  footer { text-align: center; margin-top: 18px; font-size: 14px; }
+  a { color: var(--brand); }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><img src="logo.png" alt="豊洲イーウェルクリニック"></div>
+  <h1>配信の停止</h1>
+  <div class="card">
+    <div id="ask" hidden>
+      <p>当院からのメール・LINE でのご案内を停止します。</p>
+      <p class="muted">再開をご希望の際は受付へお申し出ください。</p>
+      <button id="go" type="button">配信を停止する</button>
+      <p class="err" id="fail" role="alert" hidden style="margin:14px 0 0">受け付けられませんでした。時間をおいてもう一度お試しいただくか、受付へご連絡ください。</p>
+    </div>
+    <div id="done" hidden>
+      <p><b>配信の停止を受け付けました。</b></p>
+      <p class="muted" style="margin:0">反映までお時間をいただく場合があり、その間に行き違いでご案内が届くことがあります。再開をご希望の際は受付へお申し出ください。</p>
+    </div>
+    <div id="bad" hidden>
+      <p class="err" style="margin:0">このリンクは使えません。メールのリンクをもう一度開くか、受付へご連絡ください。</p>
+    </div>
+  </div>
+  <footer><a href="https://ewell-clinic.com/" rel="noopener">豊洲イーウェルクリニック</a></footer>
+</main>
+<script src="stop.js?v=2026-11-04.1"></script>
+</body>
+</html>
